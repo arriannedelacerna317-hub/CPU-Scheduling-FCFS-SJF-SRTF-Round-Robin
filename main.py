@@ -1,19 +1,3 @@
-#!/usr/bin/env python3
-"""
-CPU Scheduling Simulator (simple GUI)
-Platform Technologies - Final Project (Topic 2)
-
-Algorithms : FCFS | SJF (non-preemptive) | SRTF (preemptive) | Round Robin
-Output     : Gantt chart, per-process CT / TAT / WT / RT, averages,
-             Round Robin quantum trace, and a short comparison.
-
-Formulas   : TAT = CT - AT      WT = TAT - BT      RT = first CPU time - AT
-Tie-break  : earlier arrival first, then input order.
-
-Only the Python standard library (tkinter) is needed.
-Run:  python cpu_scheduler_gui.py
-"""
-
 import tkinter as tk
 from collections import deque
 from copy import deepcopy
@@ -21,33 +5,28 @@ from tkinter import ttk
 
 IDLE = "IDLE"
 
-# ============================================================================
-#  SCHEDULING ENGINE
-# ============================================================================
-
 
 class Process:
     def __init__(self, pid, at, bt, order):
         self.pid, self.at, self.bt, self.order = pid, at, bt, order
         self.remaining = bt
-        self.start = None      # first time the process gets the CPU
-        self.ct = 0            # completion time
+        self.start = None
+        self.ct = 0
 
     @property
-    def tat(self):             # turnaround time
+    def tat(self):
         return self.ct - self.at
 
     @property
-    def wt(self):              # waiting time
+    def wt(self):
         return self.tat - self.bt
 
     @property
-    def rt(self):              # response time
+    def rt(self):
         return self.start - self.at
 
 
 def merge_segments(segments):
-    """Join back-to-back blocks that belong to the same process."""
     merged = []
     for pid, s, e in segments:
         if merged and merged[-1][0] == pid and merged[-1][2] == s:
@@ -61,7 +40,6 @@ class Result:
     def __init__(self, key, name, procs, timeline, rr_log=None, quantum=None):
         self.key, self.name = key, name
         self.procs = sorted(procs, key=lambda p: p.order)
-        # Round Robin keeps one block per quantum; the others merge runs.
         self.gantt = timeline if rr_log is not None else merge_segments(timeline)
         self.end_time = timeline[-1][2]
         self.rr_log, self.quantum = rr_log, quantum
@@ -73,7 +51,7 @@ class Result:
 def fcfs(procs):
     procs, timeline, time = deepcopy(procs), [], 0
     for p in sorted(procs, key=lambda x: (x.at, x.order)):
-        if time < p.at:                                  # CPU idle
+        if time < p.at:
             timeline.append((IDLE, time, p.at))
             time = p.at
         p.start = time
@@ -92,7 +70,7 @@ def sjf(procs):
             timeline.append((IDLE, time, nxt))
             time = nxt
             continue
-        p = min(ready, key=lambda x: (x.bt, x.at, x.order))   # shortest burst
+        p = min(ready, key=lambda x: (x.bt, x.at, x.order))
         p.start = time
         timeline.append((p.pid, time, time + p.bt))
         time += p.bt
@@ -112,12 +90,12 @@ def srtf(procs):
             time, current = nxt, None
             continue
         best = min(ready, key=lambda x: (x.remaining, x.at, x.order))
-        if current and current in ready and current.remaining == best.remaining:
-            best = current                    # keep running on a tie
+        if current in ready and current.remaining == best.remaining:
+            best = current
         current = best
         if current.start is None:
             current.start = time
-        timeline.append((current.pid, time, time + 1))   # 1 time unit at a time
+        timeline.append((current.pid, time, time + 1))
         current.remaining -= 1
         time += 1
         if current.remaining == 0:
@@ -132,7 +110,7 @@ def round_robin(procs, quantum):
     queue, timeline, log = deque(), [], []
     time, i, done, n = 0, 0, 0, len(procs)
 
-    def admit(t):                             # move arrived processes to queue
+    def admit(t):
         nonlocal i
         while i < n and ordered[i].at <= t:
             queue.append(ordered[i])
@@ -140,7 +118,7 @@ def round_robin(procs, quantum):
 
     admit(0)
     while done < n:
-        if not queue:                         # CPU idle until next arrival
+        if not queue:
             nxt = ordered[i].at
             timeline.append((IDLE, time, nxt))
             time = nxt
@@ -153,23 +131,20 @@ def round_robin(procs, quantum):
         time += run
         p.remaining -= run
         timeline.append((p.pid, t0, time))
-        admit(time)                           # new arrivals go in BEFORE p
+        admit(time)
         if p.remaining > 0:
             queue.append(p)
             status = "Requeued"
         else:
             p.ct, status = time, "Finished"
             done += 1
-        log.append({"pid": p.pid, "start": t0, "end": time, "ran": run,
-                    "before": before, "after": p.remaining, "status": status,
+        log.append({"pid": p.pid, "start": t0, "end": time, "before": before,
+                    "after": p.remaining, "status": status,
                     "queue": [q.pid for q in queue]})
     return Result("RR", f"Round Robin (time quantum = {quantum})", procs,
                   timeline, rr_log=log, quantum=quantum)
 
 
-# ============================================================================
-#  THEME (light, simple)
-# ============================================================================
 BG, WHITE, BORDER = "#eef2f7", "#ffffff", "#cfd8e6"
 NAVY, BLUE, GREEN = "#1f3a68", "#2f6fed", "#2e9e5b"
 TEXT, MUTED, HEAD = "#1d2733", "#6b7788", "#e6edf8"
@@ -187,8 +162,6 @@ DESCRIPTIONS = {
            "runs next, until it finishes (no preemption).",
     "SRTF": "Like SJF, but preemptive: the process with the least remaining time "
             "always gets the CPU, so a shorter newcomer can interrupt.",
-    "RR": "Each process gets the CPU for at most one time quantum, then goes to "
-          "the back of the ready queue.",
 }
 
 
@@ -210,7 +183,6 @@ def make_table(parent, columns, headings, widths, height, anchors=None):
 
 
 def results_card(parent, title="Results"):
-    """White card with a navy title bar, like the reference design."""
     outer = tk.Frame(parent, bg=WHITE, highlightbackground=BORDER, highlightthickness=1)
     tk.Label(outer, text=title, bg=NAVY, fg="white", font=("Segoe UI", 11, "bold"),
              anchor="w", padx=12, pady=5).pack(fill="x")
@@ -219,31 +191,30 @@ def results_card(parent, title="Results"):
     return outer, body
 
 
-# ============================================================================
-#  ALGORITHM TAB  (static: everything is shown at once)
-# ============================================================================
+def done_badge(parent):
+    tk.Label(parent, text="✔  Simulation Completed!", bg="#dff3e7", fg=GREEN,
+             font=F_B, padx=12, pady=4).pack(side="right")
+
+
 class AlgoView(tk.Frame):
-    def __init__(self, master, app, res):
+    def __init__(self, master, colors, res):
         super().__init__(master, bg=BG)
-        self.res, self.colors = res, app.colors
+        self.res, self.colors = res, colors
 
         head = tk.Frame(self, bg=BG)
         head.pack(fill="x", pady=(0, 6))
         tk.Label(head, text=res.key, bg=BG, fg=NAVY, font=("Segoe UI", 20, "bold")).pack(side="left")
         tk.Label(head, text="   " + res.name, bg=BG, fg=MUTED, font=("Segoe UI", 11)).pack(side="left", pady=(7, 0))
-        tk.Label(head, text="✔  Simulation Completed!", bg="#dff3e7", fg=GREEN, font=F_B,
-                 padx=12, pady=4).pack(side="right")
+        done_badge(head)
 
         card, body = results_card(self)
         card.pack(fill="both", expand=True)
 
-        # --- Gantt chart
         tk.Label(body, text="Gantt Chart:", bg=WHITE, fg=TEXT, font=F_B).pack(anchor="w")
         self.cv = tk.Canvas(body, height=84, bg=WHITE, highlightthickness=0)
         self.cv.pack(fill="x", pady=(4, 6))
         self.cv.bind("<Configure>", lambda e: self.draw_gantt())
 
-        # --- averages (one line)
         avg = tk.Frame(body, bg=HEAD)
         avg.pack(fill="x", pady=(0, 10))
         for label, attr in (("Average Completion Time", "ct"), ("Average Turnaround Time", "tat"),
@@ -253,18 +224,16 @@ class AlgoView(tk.Frame):
             tk.Label(f, text=f"{res.avg(attr):.2f}", bg=HEAD, fg=NAVY, font=("Segoe UI", 15, "bold")).pack()
             tk.Label(f, text=label, bg=HEAD, fg=MUTED, font=F_S).pack()
 
-        # --- details table (left) + RR trace or explanation (right)
         row = tk.Frame(body, bg=WHITE)
         row.pack(fill="both", expand=True)
-        row.columnconfigure(0, weight=0)
         row.columnconfigure(1, weight=1)
         row.rowconfigure(0, weight=1)
 
         left = tk.Frame(row, bg=WHITE)
         left.grid(row=0, column=0, sticky="nsew", padx=(0, 14))
         tk.Label(left, text="Details:", bg=WHITE, fg=TEXT, font=F_B).pack(anchor="w", pady=(0, 4))
-        cols = ("pid", "at", "bt", "ct", "tat", "wt", "rt")
-        tree = make_table(left, cols, ("Process", "Arrival", "Burst", "CT", "TAT", "WT", "RT"),
+        tree = make_table(left, ("pid", "at", "bt", "ct", "tat", "wt", "rt"),
+                          ("Process", "Arrival", "Burst", "CT", "TAT", "WT", "RT"),
                           (66, 60, 50, 50, 50, 50, 50), min(len(res.procs) + 1, 10))
         tree.tag_configure("avg", background=HEAD, foreground=NAVY, font=F_B)
         for p in res.procs:
@@ -279,11 +248,11 @@ class AlgoView(tk.Frame):
         if res.rr_log:
             tk.Label(right, text=f"Round Robin Quantum Trace (q = {res.quantum}):", bg=WHITE,
                      fg=TEXT, font=F_B).pack(anchor="w", pady=(0, 4))
-            cols = ("n", "time", "pid", "rem", "status", "queue")
-            tr = make_table(right, cols, ("#", "Time", "Process", "Remaining", "Status", "Queue"),
+            tr = make_table(right, ("n", "time", "pid", "rem", "status", "queue"),
+                            ("#", "Time", "Process", "Remaining", "Status", "Queue"),
                             (28, 66, 58, 84, 96, 110), 9, {"queue": "w"})
             for n, e in enumerate(res.rr_log, 1):
-                q = ", ".join(e["queue"]) if e["queue"] else "empty"
+                q = ", ".join(e["queue"]) or "empty"
                 tr.insert("", "end", values=(n, f"{e['start']} - {e['end']}", e["pid"],
                                              f"{e['before']} → {e['after']}", e["status"], q))
             sb = ttk.Scrollbar(right, orient="vertical", command=tr.yview)
@@ -322,47 +291,42 @@ class AlgoView(tk.Frame):
             cv.create_text(xe, y + h + 12, text=str(res.end_time), fill=TEXT, font=F_S)
 
 
-# ============================================================================
-#  COMPARISON TAB
-# ============================================================================
 class CompareView(tk.Frame):
     COLS = (("Avg CT", "ct"), ("Avg TAT", "tat"), ("Avg WT", "wt"), ("Avg RT", "rt"))
 
-    def __init__(self, master, app, results):
+    def __init__(self, master, results):
         super().__init__(master, bg=BG)
         self.results = results
         head = tk.Frame(self, bg=BG)
         head.pack(fill="x", pady=(0, 6))
         tk.Label(head, text="Comparison", bg=BG, fg=NAVY, font=("Segoe UI", 20, "bold")).pack(side="left")
-        tk.Label(head, text="✔  Simulation Completed!", bg="#dff3e7", fg=GREEN, font=F_B,
-                 padx=12, pady=4).pack(side="right")
+        done_badge(head)
 
-        card, body = results_card(self, "Results")
+        card, body = results_card(self)
         card.pack(fill="both", expand=True)
 
         tk.Label(body, text="Average metrics (lower is better, green = best):", bg=WHITE,
                  fg=TEXT, font=F_B).pack(anchor="w", pady=(0, 6))
         grid = tk.Frame(body, bg=BORDER)
         grid.pack(anchor="w")
-        heads = ["Algorithm"] + [c[0] for c in self.COLS]
-        for c, h in enumerate(heads):
+        for c, h in enumerate(["Algorithm"] + [c[0] for c in self.COLS]):
             tk.Label(grid, text=h, bg=HEAD, fg=NAVY, font=F_B, width=16, pady=6).grid(
                 row=0, column=c, padx=1, pady=1, sticky="nsew")
         best = {a: min(r.avg(a) for r in results) for _, a in self.COLS}
         for i, r in enumerate(results, 1):
-            name = "RR (q=%d)" % r.quantum if r.key == "RR" else r.key
+            name = f"RR (q={r.quantum})" if r.key == "RR" else r.key
             tk.Label(grid, text=name, bg=WHITE, fg=TEXT, font=F_B, width=16, pady=6).grid(
                 row=i, column=0, padx=1, pady=1, sticky="nsew")
             for c, (_, a) in enumerate(self.COLS, 1):
                 v = r.avg(a)
                 is_best = abs(v - best[a]) < 1e-9
                 tk.Label(grid, text=f"{v:.2f}", bg="#dff3e7" if is_best else WHITE,
-                         fg=GREEN if is_best else TEXT, font=F_B if is_best else F, width=16, pady=6).grid(
-                    row=i, column=c, padx=1, pady=1, sticky="nsew")
+                         fg=GREEN if is_best else TEXT, font=F_B if is_best else F,
+                         width=16, pady=6).grid(row=i, column=c, padx=1, pady=1, sticky="nsew")
 
         tk.Label(body, text="Short comparison:", bg=WHITE, fg=TEXT, font=F_B).pack(anchor="w", pady=(16, 4))
         for line in self.summary():
-            tk.Label(body, text="•  " + line, bg=WHITE, fg=TEXT, font=("Segoe UI", 10),
+            tk.Label(body, text="•  " + line, bg=WHITE, fg=TEXT, font=F,
                      wraplength=820, justify="left").pack(anchor="w", pady=1)
 
     def summary(self):
@@ -381,9 +345,6 @@ class CompareView(tk.Frame):
         return lines
 
 
-# ============================================================================
-#  MAIN APPLICATION
-# ============================================================================
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -391,12 +352,12 @@ class App(tk.Tk):
         self.geometry("1360x800")
         self.minsize(1100, 700)
         self.configure(bg=BG)
-        self.rows, self.colors, self.view_frames = [], {}, []
+        self.rows, self.view_frames = [], []
         self._style()
         tk.Label(self, text="CPU Scheduling Simulator", bg=BG, fg=NAVY,
                  font=("Segoe UI", 20, "bold")).pack(anchor="w", padx=16, pady=(10, 0))
         tk.Label(self, text="FCFS  ·  SJF  ·  SRTF  ·  Round Robin", bg=BG, fg=MUTED,
-                 font=("Segoe UI", 10)).pack(anchor="w", padx=16, pady=(0, 8))
+                 font=F).pack(anchor="w", padx=16, pady=(0, 8))
         body = tk.Frame(self, bg=BG)
         body.pack(fill="both", expand=True, padx=12, pady=(0, 12))
         self._sidebar(body)
@@ -405,7 +366,6 @@ class App(tk.Tk):
         self._welcome()
         self._refresh_inputs()
 
-    # ---- look & feel --------------------------------------------------------
     def _style(self):
         s = ttk.Style(self)
         s.theme_use("clam")
@@ -427,7 +387,6 @@ class App(tk.Tk):
         self.nb.add(f, text="  Start  ")
         self.view_frames.append(f)
 
-    # ---- INPUT panel --------------------------------------------------------
     def _entry(self, parent, width):
         return tk.Entry(parent, width=width, bg=WHITE, fg=TEXT, insertbackground=BLUE, relief="flat",
                         font=F, highlightthickness=1, highlightbackground=BORDER, highlightcolor=BLUE)
@@ -454,12 +413,10 @@ class App(tk.Tk):
             tk.Label(form, text=t, bg=WHITE, fg=MUTED, font=F_S).grid(row=0, column=i, sticky="w")
         self.e_pid = self._entry(form, 8)
         self.e_at, self.e_bt = self._spin(form, 0, 999), self._spin(form, 1, 999)
-        self.e_pid.grid(row=1, column=0, padx=(0, 6), ipady=3)
-        self.e_at.grid(row=1, column=1, padx=(0, 6), ipady=3)
-        self.e_bt.grid(row=1, column=2, padx=(0, 6), ipady=3)
-        mkbtn(form, "＋ ADD", self.add_process, bg=GREEN, fg="white", hover="#25804a", pady=3).grid(row=1, column=3)
-        for w in (self.e_pid, self.e_at, self.e_bt):
+        for col, w in enumerate((self.e_pid, self.e_at, self.e_bt)):
+            w.grid(row=1, column=col, padx=(0, 6), ipady=3)
             w.bind("<Return>", lambda e: self.add_process())
+        mkbtn(form, "＋ ADD", self.add_process, bg=GREEN, fg="white", hover="#25804a", pady=3).grid(row=1, column=3)
 
         row = tk.Frame(sb, bg=WHITE)
         row.pack(fill="x", padx=14, pady=8)
@@ -485,7 +442,6 @@ class App(tk.Tk):
         tk.Label(sb, text="TAT = CT − AT    WT = TAT − BT    RT = first run − AT", bg=WHITE, fg=MUTED,
                  font=F_S).pack(side="bottom", pady=10)
 
-    # ---- input handling -----------------------------------------------------
     def _next_pid(self):
         used = {r[0].upper() for r in self.rows}
         k = 1
@@ -507,6 +463,8 @@ class App(tk.Tk):
             at, bt = int(self.e_at.get()), int(self.e_bt.get())
         except ValueError:
             return self._error("Arrival and burst time must be whole numbers.")
+        if pid.upper() == IDLE:
+            return self._error("'IDLE' is reserved. Use another Process ID.")
         if any(r[0].upper() == pid.upper() for r in self.rows):
             return self._error(f"Process ID '{pid}' already exists.")
         if at < 0 or bt < 1:
@@ -530,7 +488,6 @@ class App(tk.Tk):
     def _error(self, msg):
         self.err.config(text=msg)
 
-    # ---- run ----------------------------------------------------------------
     def run(self):
         if not self.rows:
             return self._error("Add at least one process first.")
@@ -543,15 +500,15 @@ class App(tk.Tk):
         self._error("")
 
         procs = [Process(pid, at, bt, i) for i, (pid, at, bt) in enumerate(self.rows)]
-        self.colors = {p.pid: PASTEL[i % len(PASTEL)] for i, p in enumerate(procs)}
+        colors = {p.pid: PASTEL[i % len(PASTEL)] for i, p in enumerate(procs)}
         results = [fcfs(procs), sjf(procs), srtf(procs), round_robin(procs, q)]
 
         for f in self.view_frames:
             f.destroy()
         self.view_frames = []
         for r in results:
-            self._add_tab(f"  {r.key}  ", AlgoView(self.nb, self, r))
-        self._add_tab("  Compare  ", CompareView(self.nb, self, results))
+            self._add_tab(f"  {r.key}  ", AlgoView(self.nb, colors, r))
+        self._add_tab("  Compare  ", CompareView(self.nb, results))
         self.nb.select(0)
 
     def _add_tab(self, title, frame):
