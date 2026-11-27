@@ -355,9 +355,7 @@ class App(tk.Tk):
         self.rows, self.view_frames = [], []
         self._style()
         tk.Label(self, text="CPU Scheduling Simulator", bg=BG, fg=NAVY,
-                 font=("Segoe UI", 20, "bold")).pack(anchor="w", padx=16, pady=(10, 0))
-        tk.Label(self, text="FCFS  ·  SJF  ·  SRTF  ·  Round Robin", bg=BG, fg=MUTED,
-                 font=F).pack(anchor="w", padx=16, pady=(0, 8))
+                 font=("Segoe UI", 20, "bold")).pack(anchor="w", padx=16, pady=(10, 8))
         body = tk.Frame(self, bg=BG)
         body.pack(fill="both", expand=True, padx=12, pady=(0, 12))
         self._sidebar(body)
@@ -429,7 +427,7 @@ class App(tk.Tk):
 
         qf = tk.Frame(sb, bg=WHITE)
         qf.pack(fill="x", padx=14)
-        tk.Label(qf, text="Round Robin time quantum", bg=WHITE, fg=TEXT, font=F).pack(side="left")
+        tk.Label(qf, text="Round Robin time quantum:", bg=WHITE, fg=BLUE, font=F_B).pack(side="left")
         self.e_q = self._spin(qf, 1, 99, 4)
         self.e_q.delete(0, "end")
         self.e_q.insert(0, "3")
@@ -439,8 +437,6 @@ class App(tk.Tk):
         self.err.pack(anchor="w", padx=14, pady=(10, 0))
         mkbtn(sb, "▶  Run Simulation", self.run, bg=BLUE, fg="white", hover="#1d56c4",
               font=("Segoe UI", 12, "bold"), pady=11).pack(fill="x", padx=14, pady=(8, 6))
-        tk.Label(sb, text="TAT = CT − AT    WT = TAT − BT    RT = first run − AT", bg=WHITE, fg=MUTED,
-                 font=F_S).pack(side="bottom", pady=10)
 
     def _next_pid(self):
         used = {r[0].upper() for r in self.rows}
